@@ -15,8 +15,8 @@
     <script>
         title = "CROKUNOLU";
 
-        description = `[Hold] Power
-[Release] shoot`;
+        description = `[Slide] Angle/Power
+[Release] Shoot`;
 
         characters = [
             `
@@ -36,7 +36,7 @@ L    L
 `,
         ];
         options = {
-            isPlayingBgm: false,
+            isPlayingBgm: true,
             isReplayEnabled: true,
             seed: 2024,
         };
@@ -111,8 +111,9 @@ L    L
         }
 
         function drawBoard() {
-            color("light_black");
-            // draw circle for board
+            color("black");
+
+            // draw outer ring
             arc(
                 board.pos.x, // x
                 board.pos.y, // y
@@ -121,6 +122,18 @@ L    L
                 // Math.PI, // from ang
                 // 2 * Math.PI, // to ang
             );
+
+            color("light_black");
+            // draw inner ring
+            arc(
+                board.pos.x, // x
+                board.pos.y, // y
+                board.radius * 2 / 3, // radius
+                board.board_thickness - 1, // thickness
+                // Math.PI, // from ang
+                // 2 * Math.PI, // to ang
+            );
+
 
             // draw inner circle / pegs
             // arc(
@@ -146,7 +159,7 @@ L    L
         function updateShooting() {
             // shooter.angle += shooter.angleVel * 0.05;
             shooter.angle = input.pos.angleTo(shooter.pos);
-            shooter.power = clamp(input.pos.distanceTo(shooter.pos) / 5 + 1, 1, 5);
+            shooter.power = clamp(input.pos.distanceTo(shooter.pos) / 5 + 0.5, 0.5, 6);
             //     -PI / 2 - PI / 3,
             //     -PI / 2 + PI / 3,
             // );
@@ -158,10 +171,11 @@ L    L
             //     shooter.angle += shooter.angleVel * 0.05 * 2;
             // }
             color("light_black");
-            bar(shooter.pos.x + 1, shooter.pos.y + 1, shooter.power * 5, 3, shooter.angle, 0);
+            bar(shooter.pos.x + 1, shooter.pos.y + 1, shooter.power * 5, 2, shooter.angle, 0);
 
             if (input.isJustReleased) {
                 shooter.state = states.JUST_SHOT;
+                play("jump");
                 discs.push({
                     pos: vec(shooter.pos.x, shooter.pos.y),
                     vel: vec(shooter.vel.x, shooter.vel.y).addWithAngle(shooter.angle, shooter.power * 0.5 * shooter.basePower),
@@ -180,8 +194,17 @@ L    L
         function updateDiscs() {
             color("black");
 
-            // move each disc according to velocity
-            discs.forEach((d) => {
+            // check if out of bounds
+            remove(discs, (d) => {
+                if (d.pos.distanceTo(board.pos) > (board.radius + 1)) {
+                    if (d.just_shot) {
+                        d.just_shot = false;
+                        resetShooter();
+                    }
+                    play("synth");
+                    return true;
+                }
+
                 if (d.vel.length < 0.01) {
                     d.state = states.IDLE;
                     if (d.just_shot) {
@@ -193,6 +216,7 @@ L    L
                     d.vel.mul(friction);
                     // console.log(d.vel.length);
                 }
+
 
                 // check collisions
                 discs.forEach((cd) => {
@@ -209,12 +233,13 @@ L    L
                 });
 
                 char("a", d.pos);
-            });
+
+            })
         }
 
         function addCollidingVelocity(d, cd, v) {
             const newAngle = d.pos.angleTo(cd.pos);
-            const pr = abs(cos(v.angle - newAngle)) * 0.9;
+            const pr = abs(cos(v.angle - newAngle));
             cd.vel.addWithAngle(newAngle, v.length * pr);
             d.vel.addWithAngle(newAngle, -v.length * pr);
         }
