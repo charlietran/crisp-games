@@ -15,8 +15,11 @@
     <script>
         title = "CROKUNOLU";
 
-        description = `[Slide] Angle/Power
-[Release] Shoot`;
+        description = `[Slide]
+ Aim/Power
+
+[Release]
+ Shoot`;
 
         characters = [
             `
@@ -27,12 +30,11 @@ yYYYy
  yyy
 `,
             `
- LLLL
-L    L
-L    L
-L    L
-L    L
- LLLL
+ LLL
+L   L
+L   L
+L   L
+ LLL
 `,
         ];
         options = {
@@ -64,8 +66,8 @@ L    L
         function initializeGame() {
             document.title = "CROKUNOLU";
             shooter = {
-                base_pos: vec(50, 90),
-                pos: vec(50, 90),
+                base_pos: vec(50, 86),
+                pos: vec(50, 86),
                 prevPos: vec(),
                 vel: vec(),
                 angle: 0,
@@ -108,10 +110,11 @@ L    L
                 drawShooter();
             }
             updateDiscs();
+            drawPegs();
         }
 
         function drawBoard() {
-            color("black");
+            color("light_black");
 
             // draw outer ring
             arc(
@@ -123,16 +126,21 @@ L    L
                 // 2 * Math.PI, // to ang
             );
 
-            color("light_black");
             // draw inner ring
             arc(
                 board.pos.x, // x
                 board.pos.y, // y
                 board.radius * 2 / 3, // radius
-                board.board_thickness - 1, // thickness
+                1, // thickness
                 // Math.PI, // from ang
                 // 2 * Math.PI, // to ang
             );
+
+            // draw divider lines
+            line(board.pos.x + 4, board.pos.y, board.pos.x + board.radius, board.pos.y, 1);
+            line(board.pos.x - 4, board.pos.y, board.pos.x - board.radius, board.pos.y, 1);
+            line(board.pos.x, board.pos.y + 4, board.pos.x, board.pos.y + board.radius, 1);
+            line(board.pos.x, board.pos.y - 4, board.pos.x, board.pos.y - board.radius, 1);
 
 
             // draw inner circle / pegs
@@ -142,12 +150,15 @@ L    L
             //     board.radius / 3,
             //     1,
             // );
-            color("black");
-            board.pegs.forEach(p => { box(p, board.peg_thickness) });
 
             color("black");
-            char("b", board.pos.x, board.pos.y);
+            char("b", board.pos.x - 1, board.pos.y - 1);
             // box(board.pos.x + (board.radius / 3), board.pos.y - (board.radius / 3), 1);
+        }
+
+        function drawPegs() {
+            color("black");
+            board.pegs.forEach(p => { box(p, board.peg_thickness) });
         }
 
         function drawShooter() {
@@ -214,11 +225,29 @@ L    L
                 } else {
                     d.pos.add(d.vel);
                     d.vel.mul(friction);
-                    // console.log(d.vel.length);
                 }
 
+                // console.log(d.vel);
+                // check collisions with pegs
+                board.pegs.forEach((p) => {
+                    if (d.pos.distanceTo(p) < 4) {
+                        let hit = false;
+                        console.log("x", p.x - d.pos.x, "y", p.y - d.pos.y);
+                        if (abs(p.x - d.pos.x) < 1 && d.vel.y < 0 && p.y < d.pos.y || d.vel.y > 0 && p.y > d.pos.y) {
+                            d.vel.y *= -1
+                            hit = true;
+                        }
+                        if (abs(p.y - d.pos.y) < 1 && d.vel.x < 0 && p.x < d.pos.x || d.vel.x > 0 && p.x > d.pos.x) {
+                            d.vel.x *= -1
+                            hit = true;
+                        }
+                        if (hit) {
+                            play("hit");
+                        }
+                    }
+                });
 
-                // check collisions
+                // check collisions with other discs
                 discs.forEach((cd) => {
                     if (d == cd) {
                         return;
