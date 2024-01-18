@@ -239,7 +239,7 @@
                 const enemyPos = vec(70).rotate(enemyAddAngle).add(50, 50);
                 const enemyVel = vec(rnd(10))
                     .rotate(rnd(PI * 2))
-                    .add(50, 50)
+                    .add(board.pos)
                     .sub(enemyPos)
                     .div(500 / rnd(1, difficulty));
                 discs.push({
@@ -317,6 +317,7 @@
                         play("lucky");
                         color("red");
                         text("X", d.pos);
+                        color("black");
                         end();
                     }
                     play("coin");
