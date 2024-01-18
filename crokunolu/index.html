@@ -36,6 +36,13 @@ L   L
 L   L
  LLL
 `,
+            `
+r   r
+ r r
+  r
+ r r
+r   r
+`,
         ];
         options = {
             isPlayingBgm: true,
@@ -152,8 +159,8 @@ L   L
             //     1,
             // );
 
-            color("black");
-            arc(board.pos, 3.5, 0.5);
+            color("light_blue");
+            arc(board.pos, 3.5, 0.3);
             // char("b", board.pos.x - 1, board.pos.y - 1);
             // box(board.pos.x + (board.radius / 3), board.pos.y - (board.radius / 3), 1);
         }
@@ -212,8 +219,8 @@ L   L
         function updateDiscs() {
             color("black");
 
-            // check if out of bounds
             remove(discs, (d) => {
+                // check if out of bounds
                 if (d.pos.distanceTo(board.pos) > (board.radius + 1)) {
                     if (d.just_shot) {
                         d.just_shot = false;
@@ -222,6 +229,18 @@ L   L
                     play("synth");
                     return true;
                 }
+
+                // check if in the hole
+                if (d.pos.distanceTo(board.pos) < 2 && d.vel.length < 0.3) {
+                    play("coin");
+                    addScore(20, board.pos);
+                    if (d.just_shot) {
+                        resetShooter();
+                    }
+                    return true;
+                }
+
+
                 char("a", d.pos);
 
                 if (d.vel.length < 0.01) {
