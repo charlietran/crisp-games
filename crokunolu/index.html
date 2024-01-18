@@ -40,7 +40,8 @@ L   L
         options = {
             isPlayingBgm: true,
             isReplayEnabled: true,
-            seed: 2024,
+            seed: 2002,
+            theme: "shape",
         };
 
         let shooter;
@@ -66,8 +67,8 @@ L   L
         function initializeGame() {
             document.title = "CROKUNOLU";
             shooter = {
-                base_pos: vec(50, 86),
-                pos: vec(50, 86),
+                base_pos: vec(49, 86),
+                pos: vec(49, 86),
                 prevPos: vec(),
                 vel: vec(),
                 angle: 0,
@@ -110,7 +111,7 @@ L   L
                 drawShooter();
             }
             updateDiscs();
-            drawPegs();
+            updatePegs();
         }
 
         function drawBoard() {
@@ -137,10 +138,10 @@ L   L
             );
 
             // draw divider lines
-            line(board.pos.x + 4, board.pos.y, board.pos.x + board.radius, board.pos.y, 1);
-            line(board.pos.x - 4, board.pos.y, board.pos.x - board.radius, board.pos.y, 1);
-            line(board.pos.x, board.pos.y + 4, board.pos.x, board.pos.y + board.radius, 1);
-            line(board.pos.x, board.pos.y - 4, board.pos.x, board.pos.y - board.radius, 1);
+            line(board.pos.x + 4, board.pos.y, board.pos.x + board.radius, board.pos.y, 0.5);
+            line(board.pos.x - 4, board.pos.y, board.pos.x - board.radius, board.pos.y, 0.5);
+            line(board.pos.x, board.pos.y + 4, board.pos.x, board.pos.y + board.radius, 0.5);
+            line(board.pos.x, board.pos.y - 4, board.pos.x, board.pos.y - board.radius, 0.5);
 
 
             // draw inner circle / pegs
@@ -152,13 +153,18 @@ L   L
             // );
 
             color("black");
-            char("b", board.pos.x - 1, board.pos.y - 1);
+            arc(board.pos, 3.5, 0.5);
+            // char("b", board.pos.x - 1, board.pos.y - 1);
             // box(board.pos.x + (board.radius / 3), board.pos.y - (board.radius / 3), 1);
         }
 
-        function drawPegs() {
+        function updatePegs() {
             color("black");
-            board.pegs.forEach(p => { box(p, board.peg_thickness) });
+            board.pegs.forEach(p => {
+                // char("c", p);
+                rect(p, 1);
+                // arc(p, .75, .75);
+            });
         }
 
         function drawShooter() {
@@ -181,14 +187,15 @@ L   L
             //     shooter.angleVel = -shooter.angleVel;
             //     shooter.angle += shooter.angleVel * 0.05 * 2;
             // }
-            color("light_black");
-            bar(shooter.pos.x + 1, shooter.pos.y + 1, shooter.power * 5, 2, shooter.angle, 0);
+            color("light_blue");
+            bar(shooter.pos.x + 1, shooter.pos.y + 1, shooter.power * 5, 1, shooter.angle, 0);
 
             if (input.isJustReleased) {
                 shooter.state = states.JUST_SHOT;
                 play("jump");
                 discs.push({
                     pos: vec(shooter.pos.x, shooter.pos.y),
+                    prevPos: vec(shooter.pos.x, shooter.pos.y),
                     vel: vec(shooter.vel.x, shooter.vel.y).addWithAngle(shooter.angle, shooter.power * 0.5 * shooter.basePower),
                     state: states.MOVING,
                     just_shot: true,
@@ -215,55 +222,76 @@ L   L
                     play("synth");
                     return true;
                 }
+                char("a", d.pos);
 
                 if (d.vel.length < 0.01) {
+                    d.vel = vec(0, 0);
                     d.state = states.IDLE;
                     if (d.just_shot) {
                         d.just_shot = false;
                         resetShooter();
                     }
                 } else {
+                    // move steps based on velocity
+                    let xsteps = abs(d.vel.x);
+                    let ysteps = abs(d.vel.y);
+                    for (i = 0; i < xsteps; i++) {
+                        step = floor(i, 1) * Math.sign(d.vel.x);
+                    }
                     d.pos.add(d.vel);
                     d.vel.mul(friction);
+
+                    // console.log(d.vel);
+                    // check collisions with pegs
+                    board.pegs.forEach((p) => {
+                        const checkVec = vec(d.pos);
+                        if (checkVec.distanceTo(p) < 4) {
+                            checkPegCollide(d, p);
+                        }
+                    });
+
+                    if (d.state == states.MOVING) {
+                        // check collisions with other discs
+                        discs.forEach((cd) => {
+                            if (d == cd) {
+                                return;
+                            }
+
+                            if (d.pos.distanceTo(cd.pos) < 4) {
+                                const v = vec(d.vel);
+                                addCollidingVelocity(d, cd, v);
+                                cd.state = states.MOVING;
+                                play("hit");
+                            }
+
+                        });
+
+                    }
+
                 }
 
-                // console.log(d.vel);
-                // check collisions with pegs
-                board.pegs.forEach((p) => {
-                    if (d.pos.distanceTo(p) < 4) {
-                        let hit = false;
-                        console.log("x", p.x - d.pos.x, "y", p.y - d.pos.y);
-                        if (abs(p.x - d.pos.x) < 1 && d.vel.y < 0 && p.y < d.pos.y || d.vel.y > 0 && p.y > d.pos.y) {
-                            d.vel.y *= -1
-                            hit = true;
-                        }
-                        if (abs(p.y - d.pos.y) < 1 && d.vel.x < 0 && p.x < d.pos.x || d.vel.x > 0 && p.x > d.pos.x) {
-                            d.vel.x *= -1
-                            hit = true;
-                        }
-                        if (hit) {
-                            play("hit");
-                        }
-                    }
-                });
-
-                // check collisions with other discs
-                discs.forEach((cd) => {
-                    if (d == cd) {
-                        return;
-                    }
-
-                    if (d.pos.distanceTo(cd.pos) < 5) {
-                        const v = vec(d.vel);
-                        addCollidingVelocity(d, cd, v);
-                        play("hit");
-                    }
-
-                });
-
-                char("a", d.pos);
+                d.prevPos = vec(d.pos);
 
             })
+        }
+
+        function checkPegCollide(d, p) {
+            let hit = false;
+            if (d.prevPos.distanceTo(p) < d.pos.distanceTo(p)) {
+                return
+            }
+            console.log(d.pos.distanceTo(p));
+            if (abs(p.x - d.pos.x) < 1 && d.vel.y < 0 && p.y < d.pos.y || d.vel.y > 0 && p.y > d.pos.y) {
+                d.vel.y *= -1
+                hit = true;
+            }
+            if (abs(p.y - d.pos.y) < 1 && d.vel.x < 0 && p.x < d.pos.x || d.vel.x > 0 && p.x > d.pos.x) {
+                d.vel.x *= -1
+                hit = true;
+            }
+            if (hit) {
+                play("hit");
+            }
         }
 
         function addCollidingVelocity(d, cd, v) {
