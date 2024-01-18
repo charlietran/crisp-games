@@ -179,8 +179,8 @@
         function setShooterPos() {
             const angle = input.pos.angleTo(board.pos);
             let newPos = vec(board.pos).addWithAngle(angle, -shooterRadius);
-            newPos.x = clamp(newPos.x, board.pos.x - shooterRadius, board.pos.x + shooterRadius);
-            newPos.y = clamp(newPos.y, board.pos.y, board.pos.y + shooterRadius);
+            // newPos.x = clamp(newPos.x, board.pos.x - shooterRadius, board.pos.x + shooterRadius);
+            newPos.y = clamp(newPos.y, board.pos.y + 2, newPos.y);
             shooter.pos = newPos;
         }
 
