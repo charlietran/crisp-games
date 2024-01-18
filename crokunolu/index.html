@@ -13,46 +13,12 @@
     <script src="https://unpkg.com/crisp-game-lib@1.1.1/docs/bundle.js"></script>
 
     <script>
-        title = "CROKUNOLU";
-
-        description = `[Slide]
- Aim/Power
-
-[Release]
- Shoot`;
-
-        characters = [
-            `
- yyy
-yYYYy
-yYYYy
-yYYYy
- yyy
-`,
-            `
- LLL
-L   L
-L   L
-L   L
- LLL
-`,
-            `
-r   r
- r r
-  r
- r r
-r   r
-`,
-        ];
-        options = {
-            isPlayingBgm: true,
-            isReplayEnabled: true,
-            seed: 2002,
-            theme: "shape",
-        };
+        setupGame();
 
         let shooter;
+        let shooterMoving;
         let discs;
+        let discsLeft;
         const states = {
             IDLE: 0,
             SHOOTING: 1,
@@ -63,13 +29,16 @@ r   r
         const friction = 0.98;
 
         const board = {
-            x: 50,
+            x: 49,
             y: 50,
             y_offset: 0,
             radius: 48,
             board_thickness: 3,
             peg_thickness: 2,
         }
+
+        const maxDiscs = 8;
+
 
         function initializeGame() {
             document.title = "CROKUNOLU";
@@ -97,6 +66,8 @@ r   r
                 vec(board.pos.x, board.pos.y).addWithAngle(PI * (15 / 8), board.radius / 3),
             ];
             discs = [];
+            discsLeft = 8;
+            shooterMoving = false;
         }
 
         function update() {
@@ -105,20 +76,38 @@ r   r
             }
 
             drawBoard();
+            drawDiscCount();
 
             if (shooter.state == states.IDLE && input.isJustPressed) {
                 shooter.state = states.SHOOTING;
+                setShooterPos();
             }
 
             if (shooter.state == states.SHOOTING) {
                 updateShooting();
             }
 
-            if (shooter.state == states.IDLE || shooter.state == states.SHOOTING) {
+            if (shooter.state == states.SHOOTING) {
                 drawShooter();
             }
+
             updateDiscs();
             updatePegs();
+            checkEnd();
+        }
+
+        function checkEnd() {
+            if (discsLeft < 1 && !shooterMoving) {
+                end();
+            }
+        }
+
+        function drawDiscCount() {
+            color("black");
+            times(discsLeft, (i) => {
+                char("a", 2 + i * 6, options.viewSize.y - 3)
+            });
+
         }
 
         function drawBoard() {
@@ -139,7 +128,7 @@ r   r
                 board.pos.x, // x
                 board.pos.y, // y
                 board.radius * 2 / 3, // radius
-                1, // thickness
+                0.5, // thickness
                 // Math.PI, // from ang
                 // 2 * Math.PI, // to ang
             );
@@ -160,16 +149,15 @@ r   r
             // );
 
             color("light_blue");
-            arc(board.pos, 3.5, 0.3);
-            // char("b", board.pos.x - 1, board.pos.y - 1);
-            // box(board.pos.x + (board.radius / 3), board.pos.y - (board.radius / 3), 1);
+            arc(board.pos, 4, 0.5);
+            // box(board.pos.x, board.pos.y, 3);
         }
 
         function updatePegs() {
             color("black");
             board.pegs.forEach(p => {
                 // char("c", p);
-                rect(p, 1);
+                rect(p, 2);
                 // arc(p, .75, .75);
             });
         }
@@ -178,6 +166,16 @@ r   r
             color("black");
             char("a", shooter.pos);
             // box(shooter, 3);
+        }
+
+        const shooterRadius = 42;
+
+        function setShooterPos() {
+            const angle = input.pos.angleTo(board.pos);
+            let newPos = vec(board.pos).addWithAngle(angle, -shooterRadius);
+            newPos.x = clamp(newPos.x, board.pos.x - shooterRadius, board.pos.x + shooterRadius);
+            newPos.y = clamp(newPos.y, board.pos.y, board.pos.y + shooterRadius);
+            shooter.pos = newPos;
         }
 
         function updateShooting() {
@@ -195,7 +193,7 @@ r   r
             //     shooter.angle += shooter.angleVel * 0.05 * 2;
             // }
             color("light_blue");
-            bar(shooter.pos.x + 1, shooter.pos.y + 1, shooter.power * 5, 1, shooter.angle, 0);
+            bar(shooter.pos.x + .5, shooter.pos.y, shooter.power * 5, 1, shooter.angle, 0);
 
             if (input.isJustReleased) {
                 shooter.state = states.JUST_SHOT;
@@ -207,6 +205,8 @@ r   r
                     state: states.MOVING,
                     just_shot: true,
                 });
+                discsLeft -= 1;
+                shooterMoving = true;
             }
             // line(vec(shooter.pos.x + 1, shooter.pos.y + 1), vec(shooter.pos).addWithAngle(shooter.angle, 12), 1);
         }
@@ -214,26 +214,40 @@ r   r
         function resetShooter() {
             shooter.pos = shooter.base_pos;
             shooter.state = states.IDLE;
+            shooterMoving = false;
         }
 
         function updateDiscs() {
             color("black");
 
             remove(discs, (d) => {
+                if (d.removeTimer === 0) {
+                    return true;
+                } else if (d.removeTimer > 0) {
+                    d.removeTimer -= 1;
+                    if (d.removeTimer % 6 == 0 || d.removeTimer % 7 == 0 || d.removeTimer % 9 == 0) {
+                        char("b", d.pos);
+                    } else {
+                        char("a", d.pos);
+                    }
+                    return;
+                }
+
                 // check if out of bounds
-                if (d.pos.distanceTo(board.pos) > (board.radius + 1)) {
+                if (d.pos.distanceTo(board.pos) > (board.radius - 1)) {
                     if (d.just_shot) {
                         d.just_shot = false;
                         resetShooter();
                     }
                     play("synth");
-                    return true;
+                    d.removeTimer = 30;
                 }
 
                 // check if in the hole
                 if (d.pos.distanceTo(board.pos) < 2 && d.vel.length < 0.3) {
                     play("coin");
                     addScore(20, board.pos);
+                    discsLeft = clamp(discsLeft, discsLeft + 1, maxDiscs);
                     if (d.just_shot) {
                         resetShooter();
                     }
@@ -243,7 +257,7 @@ r   r
 
                 char("a", d.pos);
 
-                if (d.vel.length < 0.01) {
+                if (d.vel.length < 0.1) {
                     d.vel = vec(0, 0);
                     d.state = states.IDLE;
                     if (d.just_shot) {
@@ -278,15 +292,12 @@ r   r
 
                             if (d.pos.distanceTo(cd.pos) < 4) {
                                 const v = vec(d.vel);
-                                addCollidingVelocity(d, cd, v);
+                                setCollidingDiscVel(d, cd, v);
                                 cd.state = states.MOVING;
                                 play("hit");
                             }
-
                         });
-
                     }
-
                 }
 
                 d.prevPos = vec(d.pos);
@@ -299,7 +310,6 @@ r   r
             if (d.prevPos.distanceTo(p) < d.pos.distanceTo(p)) {
                 return
             }
-            console.log(d.pos.distanceTo(p));
             if (abs(p.x - d.pos.x) < 1 && d.vel.y < 0 && p.y < d.pos.y || d.vel.y > 0 && p.y > d.pos.y) {
                 d.vel.y *= -1
                 hit = true;
@@ -313,11 +323,74 @@ r   r
             }
         }
 
-        function addCollidingVelocity(d, cd, v) {
-            const newAngle = d.pos.angleTo(cd.pos);
-            const pr = abs(cos(v.angle - newAngle));
-            cd.vel.addWithAngle(newAngle, v.length * pr);
-            d.vel.addWithAngle(newAngle, -v.length * pr);
+        function setCollidingDiscVel(d1, d2) {
+            // get the angle between the two discs
+            const angleBetweenDiscs = d1.pos.angleTo(d2.pos);
+
+            const d1vl = d1.vel.length;
+            const d2vl = d2.vel.length;
+
+            // proportion that velocity is lowered based on delta of velocity angle and discs angle
+            const pr = abs(cos(d1.vel.angle - angleBetweenDiscs)) * 0.9;
+
+            // remove proportional d1 velocity from d1
+            d1.vel.addWithAngle(angleBetweenDiscs, -d1vl * pr);
+
+            // add proportional d1 velocity to d2
+            d2.vel.addWithAngle(angleBetweenDiscs, d1vl * pr);
+
+            // remove proportional d2 velocity from d2
+            d2.vel.addWithAngle(angleBetweenDiscs, -d2vl * pr);
+
+            // add proportional d2 velocity to d2
+            d1.vel.addWithAngle(angleBetweenDiscs, d2vl * pr);
+
+        }
+
+        function setupGame() {
+            title = "CROKUNOLU";
+
+            description = `[Slide]
+ Aim/Power
+
+[Release]
+ Shoot`;
+
+            characters = [
+                `
+ yyy
+yYYYy
+yYYYy
+yYYYy
+ yyy
+`,
+                `
+ ppp
+ppppp
+ppppp
+ppppp
+ ppp
+`,
+            ];
+            options = {
+                isPlayingBgm: true,
+                isReplayEnabled: true,
+                seed: 2002,
+                theme: "shape",
+                viewSize: { x: 100, y: 116 }
+                // theme: "shapeDark",
+                // theme: "dark",
+                // theme: "crt",
+            };
+
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('theme')) {
+                options.theme = urlParams.get('theme');
+            }
+            if (urlParams.has('seed')) {
+                options.seed = Number(urlParams.get('seed'));
+            }
         }
 
         addEventListener("load", onLoad);
