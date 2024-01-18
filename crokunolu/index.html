@@ -19,12 +19,14 @@
         let shooterMoving;
         let discs;
         let discsLeft;
+        let enemyAddAngle;
+        let enemyAddTicks;
+
         const states = {
             IDLE: 0,
             SHOOTING: 1,
             JUST_SHOT: 2,
-            POWERING: 3,
-            MOVING: 4,
+            MOVING: 3,
         };
         const friction = 0.98;
 
@@ -74,6 +76,9 @@
                 board.dividerLineThickness = 1;
             }
 
+            enemyAddAngle = rnd(PI * 2);
+            enemyAddTicks = 0;
+            enemyDiscs = [];
 
             discs = [];
             discsLeft = 8;
@@ -88,7 +93,7 @@
             drawBoard();
             drawDiscCount();
 
-            if (shooter.state == states.IDLE && input.isJustPressed) {
+            if (input.isJustPressed) {
                 shooter.state = states.SHOOTING;
                 setShooterPos();
             }
@@ -101,6 +106,7 @@
                 drawShooter();
             }
 
+            updateEnemies();
             updateDiscs();
             updatePegs();
             checkEnd();
@@ -210,6 +216,10 @@
                     vel: vec(shooter.vel.x, shooter.vel.y).addWithAngle(shooter.angle, shooter.power * 0.5 * shooter.basePower),
                     state: states.MOVING,
                     just_shot: true,
+                    sprite: "a",
+                    friction: friction,
+                    enemy: false,
+                    off_course: false,
                 });
                 discsLeft -= 1;
                 shooterMoving = true;
@@ -218,9 +228,41 @@
         }
 
         function resetShooter() {
-            shooter.pos = shooter.base_pos;
-            shooter.state = states.IDLE;
+            // shooter.pos = shooter.base_pos;
+            // shooter.state = states.IDLE;
             shooterMoving = false;
+        }
+
+        function updateEnemies() {
+            enemyAddTicks -= difficulty;
+            if (enemyAddTicks < 0) {
+                const enemyPos = vec(70).rotate(enemyAddAngle).add(50, 50);
+                const enemyVel = vec(rnd(10))
+                    .rotate(rnd(PI * 2))
+                    .add(50, 50)
+                    .sub(enemyPos)
+                    .div(500 / rnd(1, difficulty));
+                discs.push({
+                    pos: enemyPos,
+                    prevPos: enemyPos,
+                    vel: enemyVel,
+                    state: states.MOVING,
+                    just_shot: false,
+                    sprite: "c",
+                    friction: 1,
+                    enemy: true,
+                    has_entered: false,
+                });
+
+                enemyAddTicks += rnd(180, 240);
+
+                // 10% of enemy adds, change angle substantially
+                if (rnd() < 0.1) {
+                    enemyAddAngle = rnd(PI * 2);
+                } else {
+                    enemyAddAngle += rnds(0.05);
+                }
+            }
         }
 
         function updateDiscs() {
@@ -239,21 +281,47 @@
                     return;
                 }
 
+                if (d.enemy) {
+                    if (!d.has_entered && d.pos.distanceTo(board.pos) < (board.radius - 1)) {
+                        d.has_entered = true;
+                    }
+                    if (d.off_course_ticks > 0) {
+                        d.off_course_ticks += 1;
+                    }
+                    if (d.off_course_ticks > 120) {
+                        d.off_course_ticks = 0;
+                        d.friction = 1;
+                        d.vel = vec(board.pos.x - d.pos.x, board.pos.y - d.pos.y).normalize().div(10 / rnd(1, difficulty));
+                    }
+                    // console.log(d.vel.angle);
+                }
+
                 // check if out of bounds
-                if (d.pos.distanceTo(board.pos) > (board.radius - 1)) {
+                if ((!d.enemy || d.has_entered) && d.pos.distanceTo(board.pos) > (board.radius - 1)) {
                     if (d.just_shot) {
                         d.just_shot = false;
                         resetShooter();
+                    }
+                    if (d.enemy) {
+                        addScore(1, d.pos);
+                        discsLeft = clamp(discsLeft, discsLeft + 1, maxDiscs);
                     }
                     play("synth");
                     d.removeTimer = 30;
                 }
 
+
                 // check if in the hole
                 if (d.pos.distanceTo(board.pos) < 2 && d.vel.length < 0.3) {
+                    if (d.enemy) {
+                        play("lucky");
+                        color("red");
+                        text("X", d.pos);
+                        end();
+                    }
                     play("coin");
                     addScore(20, board.pos);
-                    discsLeft = clamp(discsLeft, discsLeft + 1, maxDiscs);
+                    discsLeft = clamp(discsLeft, discsLeft + 3, maxDiscs);
                     if (d.just_shot) {
                         resetShooter();
                     }
@@ -261,7 +329,7 @@
                 }
 
 
-                char("a", d.pos);
+                char(d.sprite, d.pos);
 
                 if (d.vel.length < 0.1) {
                     d.vel = vec(0, 0);
@@ -271,14 +339,8 @@
                         resetShooter();
                     }
                 } else {
-                    // move steps based on velocity
-                    let xsteps = abs(d.vel.x);
-                    let ysteps = abs(d.vel.y);
-                    for (i = 0; i < xsteps; i++) {
-                        step = floor(i, 1) * Math.sign(d.vel.x);
-                    }
                     d.pos.add(d.vel);
-                    d.vel.mul(friction);
+                    d.vel.mul(d.friction);
 
                     // console.log(d.vel);
                     // check collisions with pegs
@@ -286,6 +348,10 @@
                         const checkVec = vec(d.pos);
                         if (checkVec.distanceTo(p) < 4) {
                             checkPegCollide(d, p);
+                            if (d.enemy) {
+                                d.off_course_ticks = 1;
+                                d.friction = friction;
+                            }
                         }
                     });
 
@@ -296,18 +362,24 @@
                                 return;
                             }
 
+
                             if (d.pos.distanceTo(cd.pos) < 4) {
+                                if (cd.enemy) {
+                                    cd.off_course_ticks = 1;
+                                    cd.friction = friction;
+                                }
                                 const v = vec(d.vel);
                                 setCollidingDiscVel(d, cd, v);
                                 cd.state = states.MOVING;
-                                play("hit");
+                                if (d.just_shot) {
+                                    play("hit");
+                                }
                             }
                         });
                     }
                 }
 
                 d.prevPos = vec(d.pos);
-
             })
         }
 
@@ -378,18 +450,18 @@ ppppp
  ppp
 `,
                 `
- BBB
-B   B
-B   B
-B   B
- BBB
+ rrr
+rRRRr
+rRRRr
+rRRRr
+ rrr
 `,
             ];
             options = {
                 isPlayingBgm: true,
-                isReplayEnabled: true,
+                isReplayEnabled: false,
                 seed: 2002,
-                theme: "shape",
+                theme: "pixel",
                 viewSize: { x: 100, y: 116 }
                 // theme: "shapeDark",
                 // theme: "dark",
