@@ -39,6 +39,8 @@
 
         const maxDiscs = 8;
 
+        const isShapeTheme = options.theme == "shape" || options.theme == "shapeDark";
+
 
         function initializeGame() {
             document.title = "CROKUNOLU";
@@ -65,6 +67,14 @@
                 vec(board.pos.x, board.pos.y).addWithAngle(PI * (13 / 8), board.radius / 3),
                 vec(board.pos.x, board.pos.y).addWithAngle(PI * (15 / 8), board.radius / 3),
             ];
+
+            if (isShapeTheme) {
+                board.dividerLineThickness = 0.5;
+            } else {
+                board.dividerLineThickness = 1;
+            }
+
+
             discs = [];
             discsLeft = 8;
             shooterMoving = false;
@@ -128,29 +138,25 @@
                 board.pos.x, // x
                 board.pos.y, // y
                 board.radius * 2 / 3, // radius
-                0.5, // thickness
+                board.dividerLineThickness, // thickness
                 // Math.PI, // from ang
                 // 2 * Math.PI, // to ang
             );
 
             // draw divider lines
-            line(board.pos.x + 4, board.pos.y, board.pos.x + board.radius, board.pos.y, 0.5);
-            line(board.pos.x - 4, board.pos.y, board.pos.x - board.radius, board.pos.y, 0.5);
-            line(board.pos.x, board.pos.y + 4, board.pos.x, board.pos.y + board.radius, 0.5);
-            line(board.pos.x, board.pos.y - 4, board.pos.x, board.pos.y - board.radius, 0.5);
+            line(board.pos.x + 4, board.pos.y, board.pos.x + board.radius, board.pos.y, board.dividerLineThickness);
+            line(board.pos.x - 4, board.pos.y, board.pos.x - board.radius, board.pos.y, board.dividerLineThickness);
+            line(board.pos.x, board.pos.y + 4, board.pos.x, board.pos.y + board.radius, board.dividerLineThickness);
+            line(board.pos.x, board.pos.y - 4, board.pos.x, board.pos.y - board.radius, board.dividerLineThickness);
 
-
-            // draw inner circle / pegs
-            // arc(
-            //     board.pos.x,
-            //     board.pos.y,
-            //     board.radius / 3,
-            //     1,
-            // );
-
+            // draw center hole
             color("light_blue");
-            arc(board.pos, 4, 0.5);
-            // box(board.pos.x, board.pos.y, 3);
+            if (isShapeTheme) {
+                arc(board.pos, 4, 0.5);
+            } else {
+                // box(board.pos.x, board.pos.y, 3);
+                char("c", board.pos);
+            }
         }
 
         function updatePegs() {
@@ -192,7 +198,7 @@
             //     shooter.angleVel = -shooter.angleVel;
             //     shooter.angle += shooter.angleVel * 0.05 * 2;
             // }
-            color("light_blue");
+            color("light_yellow");
             bar(shooter.pos.x + .5, shooter.pos.y, shooter.power * 5, 1, shooter.angle, 0);
 
             if (input.isJustReleased) {
@@ -370,6 +376,13 @@ ppppp
 ppppp
 ppppp
  ppp
+`,
+                `
+ BBB
+B   B
+B   B
+B   B
+ BBB
 `,
             ];
             options = {
