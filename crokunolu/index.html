@@ -289,6 +289,7 @@
                         d.off_course_ticks += 1;
                     }
                     if (d.off_course_ticks > 120) {
+                        d.sprite = "c";
                         d.off_course_ticks = 0;
                         d.friction = 1;
                         d.vel = vec(board.pos.x - d.pos.x, board.pos.y - d.pos.y).normalize().div(10 / rnd(1, difficulty));
@@ -351,6 +352,7 @@
                             checkPegCollide(d, p);
                             if (d.enemy) {
                                 d.off_course_ticks = 1;
+                                d.sprite = "d";
                                 d.friction = friction;
                             }
                         }
@@ -367,6 +369,7 @@
                             if (d.pos.distanceTo(cd.pos) < 4) {
                                 if (cd.enemy) {
                                     cd.off_course_ticks = 1;
+                                    cd.sprite = "d";
                                     cd.friction = friction;
                                 }
                                 const v = vec(d.vel);
@@ -455,6 +458,13 @@ ppppp
 rRRRr
 rRRRr
 rRRRr
+ rrr
+`,
+                `
+ rrr
+r   r
+r   r
+r   r
  rrr
 `,
             ];
