@@ -305,6 +305,7 @@
                     }
                     if (d.enemy) {
                         addScore(1, d.pos);
+                        particle(d.pos);
                         discsLeft = clamp(discsLeft, discsLeft + 1, maxDiscs);
                     }
                     play("synth");
@@ -322,6 +323,7 @@
                         end();
                     }
                     play("coin");
+                    particle(board.pos);
                     addScore(20, board.pos);
                     discsLeft = clamp(discsLeft, discsLeft + 3, maxDiscs);
                     if (d.just_shot) {
