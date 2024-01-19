@@ -365,9 +365,15 @@
                                 return;
                             }
 
+                            if (d.enemy && !d.has_entered) {
+                                return
+                            }
 
                             if (d.pos.distanceTo(cd.pos) < 4) {
                                 if (cd.enemy) {
+                                    if (!cd.has_entered) {
+                                        return;
+                                    }
                                     cd.off_course_ticks = 1;
                                     cd.sprite = "d";
                                     cd.friction = friction;
