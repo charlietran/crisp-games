@@ -353,6 +353,9 @@
                             if (d.enemy) {
                                 d.off_course_ticks = 1;
                                 d.sprite = "d";
+                                if (abs(d.vel.length) < 0.3) {
+                                    d.vel.mul(2);
+                                }
                                 d.friction = friction;
                             }
                         }
