@@ -21,6 +21,7 @@
         let discsLeft;
         let enemyAddAngle;
         let enemyAddTicks;
+        let holeAnimTicks;
 
         const states = {
             IDLE: 0,
@@ -31,7 +32,7 @@
         const friction = 0.98;
 
         const board = {
-            x: 49,
+            x: 51,
             y: 50,
             y_offset: 0,
             radius: 48,
@@ -39,15 +40,39 @@
             peg_thickness: 2,
         }
 
-        const maxDiscs = 8;
+        const maxDiscs = 6;
 
         const isShapeTheme = options.theme == "shape" || options.theme == "shapeDark";
+
+        const colors = [
+            // "white",
+            "red",
+            "green",
+            "yellow",
+            "blue",
+            "purple",
+            "cyan",
+            // "black",
+            "light_red",
+            "light_green",
+            "light_yellow",
+            "light_blue",
+            "light_purple",
+            "light_cyan",
+            // "light_black"
+        ];
+
+        let holeboom = {
+            radius: 0,
+            ticks: 0,
+            inactiveTicks: 0,
+        }
+
 
 
         function initializeGame() {
             document.title = "CROKUNOLU";
             shooter = {
-                base_pos: vec(49, 86),
                 pos: vec(49, 86),
                 prevPos: vec(),
                 vel: vec(),
@@ -76,12 +101,15 @@
                 board.dividerLineThickness = 1;
             }
 
-            enemyAddAngle = rnd(PI * 2);
-            enemyAddTicks = 0;
+            enemyAddAngle = -rnd(PI);
+            enemyAddTicks = 60;
             enemyDiscs = [];
 
+            holeboom.ticks = 0;
+            holeboom.inactiveTicks = 0;
+
             discs = [];
-            discsLeft = 8;
+            discsLeft = maxDiscs;
             shooterMoving = false;
         }
 
@@ -155,14 +183,35 @@
             line(board.pos.x, board.pos.y + 4, board.pos.x, board.pos.y + board.radius, board.dividerLineThickness);
             line(board.pos.x, board.pos.y - 4, board.pos.x, board.pos.y - board.radius, board.dividerLineThickness);
 
+            updateHole();
+        }
+
+        function updateHole() {
             // draw center hole
-            color("light_blue");
+            // color("light_blue");
+            if (holeboom.inactiveTicks > 0) {
+                color("light_blue");
+                holeboom.inactiveTicks -= difficulty;
+            } else {
+                color(colors[Math.min(colors.length - 1, ticks % colors.length + rndi(2))]);
+            }
+
             if (isShapeTheme) {
                 arc(board.pos, 4, 0.5);
             } else {
                 // box(board.pos.x, board.pos.y, 3);
-                char("c", board.pos.x - 1, board.pos.y - 1);
+                char("e", board.pos.x - 1, board.pos.y - 1);
             }
+
+            if (holeboom.ticks > 0) {
+                holeboom.radius = 50 - holeboom.ticks;
+                color(colors[ticks % colors.length]);
+                arc(board.pos, holeboom.radius, holeboom.ticks % 4);
+                holeboom.ticks--;
+            } else {
+                holeboom.ticks = 0;
+            }
+
         }
 
         function updatePegs() {
@@ -220,6 +269,7 @@
                     friction: friction,
                     enemy: false,
                     off_course: false,
+                    collidable: true,
                 });
                 discsLeft -= 1;
                 shooterMoving = true;
@@ -228,7 +278,6 @@
         }
 
         function resetShooter() {
-            // shooter.pos = shooter.base_pos;
             // shooter.state = states.IDLE;
             shooterMoving = false;
         }
@@ -236,6 +285,7 @@
         function updateEnemies() {
             enemyAddTicks -= difficulty;
             if (enemyAddTicks < 0) {
+
                 const enemyPos = vec(70).rotate(enemyAddAngle).add(50, 50);
                 const enemyVel = vec(rnd(10))
                     .rotate(rnd(PI * 2))
@@ -251,16 +301,19 @@
                     sprite: "c",
                     friction: 1,
                     enemy: true,
-                    has_entered: false,
+                    hasEntered: false,
+                    offCourseTicks: 0,
+                    collidable: true,
                 });
 
-                enemyAddTicks += rnd(180, 240);
+                enemyAddTicks += rnd(180, 360);
 
                 // 10% of enemy adds, change angle substantially
                 if (rnd() < 0.1) {
-                    enemyAddAngle = rnd(PI * 2);
+                    enemyAddAngle = -rnd(PI);
                 } else {
                     enemyAddAngle += rnds(0.05);
+                    enemyAddAngle = clamp(enemyAddAngle, -PI, 0)
                 }
             }
         }
@@ -281,40 +334,41 @@
                     return;
                 }
 
+                // make enemies re-seek the hole
                 if (d.enemy) {
-                    if (!d.has_entered && d.pos.distanceTo(board.pos) < (board.radius - 1)) {
-                        d.has_entered = true;
+                    if (!d.hasEntered && d.pos.distanceTo(board.pos) < (board.radius - 1)) {
+                        d.hasEntered = true;
                     }
-                    if (d.off_course_ticks > 0) {
-                        d.off_course_ticks += 1;
+                    if (d.offCourseTicks > 0) {
+                        d.offCourseTicks += 1;
                     }
-                    if (d.off_course_ticks > 120) {
+                    if (d.offCourseTicks > 120) {
                         d.sprite = "c";
-                        d.off_course_ticks = 0;
+                        d.offCourseTicks = 0;
                         d.friction = 1;
                         d.vel = vec(board.pos.x - d.pos.x, board.pos.y - d.pos.y).normalize().div(10 / rnd(1, difficulty));
                     }
-                    // console.log(d.vel.angle);
                 }
 
                 // check if out of bounds
-                if ((!d.enemy || d.has_entered) && d.pos.distanceTo(board.pos) > (board.radius - 1)) {
+                if ((!d.enemy || d.hasEntered) && d.pos.distanceTo(board.pos) > (board.radius - 1)) {
                     if (d.just_shot) {
                         d.just_shot = false;
                         resetShooter();
                     }
                     if (d.enemy) {
-                        addScore(1, d.pos);
+                        addScore(10, d.pos);
                         particle(d.pos);
-                        discsLeft = clamp(discsLeft, discsLeft + 1, maxDiscs);
+                        discsLeft = Math.min(discsLeft + 1, maxDiscs);
                     }
                     play("synth");
                     d.removeTimer = 30;
+                    d.collidable = false;
                 }
 
 
                 // check if in the hole
-                if (d.pos.distanceTo(board.pos) < 2 && d.vel.length < 0.3) {
+                if (holeboom.inactiveTicks < 1 && d.pos.distanceTo(board.pos) < 2 && d.vel.length < 0.3) {
                     if (d.enemy) {
                         play("lucky");
                         color("red");
@@ -323,17 +377,20 @@
                         end();
                     }
                     play("coin");
-                    particle(board.pos);
-                    addScore(20, board.pos);
-                    discsLeft = clamp(discsLeft, discsLeft + 3, maxDiscs);
+                    play("explosion");
+                    // particle(boad.pos, 100);
+                    discsLeft = Math.min(discsLeft + 3, maxDiscs);
                     if (d.just_shot) {
                         resetShooter();
                     }
+                    holeboom.ticks = 50;
+                    holeboom.inactiveTicks = 360
                     return true;
                 }
 
 
                 char(d.sprite, d.pos);
+
 
                 if (d.vel.length < 0.1) {
                     d.vel = vec(0, 0);
@@ -343,22 +400,37 @@
                         resetShooter();
                     }
                 } else {
+                    if (d.enemy && holeboom.ticks > 0) {
+                        let distToCenter = d.pos.distanceTo(board.pos);
+                        if (distToCenter < holeboom.radius && distToCenter > holeboom.radius - 2) {
+                            particle(d.pos);
+                            addScore(5, d.pos);
+                            play("hit");
+                            return true;
+
+                            // d.vel = vec(d.pos).sub(board.pos).div(50);
+                            // d.collidable = false;
+                        }
+                    }
                     d.pos.add(d.vel);
                     d.vel.mul(d.friction);
 
                     // console.log(d.vel);
                     // check collisions with pegs
                     board.pegs.forEach((p) => {
+                        if (d.enemy && !d.collidable) {
+                            return;
+                        }
                         const checkVec = vec(d.pos);
                         if (checkVec.distanceTo(p) < 4) {
                             checkPegCollide(d, p);
                             if (d.enemy) {
-                                d.off_course_ticks = 1;
-                                d.sprite = "d";
+                                // d.offCourseTicks = 1;
+                                // d.sprite = "d";
                                 if (abs(d.vel.length) < 0.3) {
-                                    d.vel.mul(2);
+                                    d.vel.mul(1.5);
                                 }
-                                d.friction = friction;
+                                // d.friction = friction;
                             }
                         }
                     });
@@ -370,16 +442,20 @@
                                 return;
                             }
 
-                            if (d.enemy && !d.has_entered) {
+                            if (!d.collidable || !cd.collidable) {
+                                return;
+                            }
+
+                            if (d.enemy && !d.hasEntered) {
                                 return
                             }
 
                             if (d.pos.distanceTo(cd.pos) < 4) {
                                 if (cd.enemy) {
-                                    if (!cd.has_entered) {
+                                    if (!cd.hasEntered) {
                                         return;
                                     }
-                                    cd.off_course_ticks = 1;
+                                    cd.offCourseTicks = 1;
                                     cd.sprite = "d";
                                     cd.friction = friction;
                                 }
@@ -432,11 +508,15 @@
             // add proportional d1 velocity to d2
             d2.vel.addWithAngle(angleBetweenDiscs, d1vl * pr);
 
-            // remove proportional d2 velocity from d2
-            d2.vel.addWithAngle(angleBetweenDiscs, -d2vl * pr);
+            // // remove proportional d2 velocity from d2
+            // d2.vel.addWithAngle(angleBetweenDiscs, -d2vl * pr);
 
-            // add proportional d2 velocity to d2
-            d1.vel.addWithAngle(angleBetweenDiscs, d2vl * pr);
+            // // add proportional d2 velocity to d2
+            // d1.vel.addWithAngle(angleBetweenDiscs, d2vl * pr);
+        }
+
+        let queuedFuncs = [];
+        function delay(delayTicks, func) {
 
         }
 
@@ -478,13 +558,20 @@ r   r
 r   r
  rrr
 `,
+                `
+ ppp
+ppppp
+ppppp
+ppppp
+ ppp
+`,
             ];
             options = {
                 isPlayingBgm: true,
                 isReplayEnabled: false,
                 seed: 2002,
                 theme: "pixel",
-                viewSize: { x: 100, y: 116 }
+                viewSize: { x: 101, y: 116 }
                 // theme: "shapeDark",
                 // theme: "dark",
                 // theme: "crt",
