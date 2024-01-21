@@ -388,6 +388,20 @@
                     return true;
                 }
 
+                // check if part of hole explosion
+                if (d.enemy && holeboom.ticks > 0) {
+                    let distToCenter = d.pos.distanceTo(board.pos);
+                    if (distToCenter < holeboom.radius && distToCenter > holeboom.radius - 2) {
+                        particle(d.pos);
+                        addScore(5, d.pos);
+                        play("hit");
+                        return true;
+
+                        // d.vel = vec(d.pos).sub(board.pos).div(50);
+                        // d.collidable = false;
+                    }
+                }
+
 
                 char(d.sprite, d.pos);
 
@@ -400,18 +414,6 @@
                         resetShooter();
                     }
                 } else {
-                    if (d.enemy && holeboom.ticks > 0) {
-                        let distToCenter = d.pos.distanceTo(board.pos);
-                        if (distToCenter < holeboom.radius && distToCenter > holeboom.radius - 2) {
-                            particle(d.pos);
-                            addScore(5, d.pos);
-                            play("hit");
-                            return true;
-
-                            // d.vel = vec(d.pos).sub(board.pos).div(50);
-                            // d.collidable = false;
-                        }
-                    }
                     d.pos.add(d.vel);
                     d.vel.mul(d.friction);
 
