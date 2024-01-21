@@ -343,7 +343,7 @@
                         d.offCourseTicks += 1;
                     }
                     if (d.offCourseTicks > 120) {
-                        d.sprite = "c";
+                        // d.sprite = "c";
                         d.offCourseTicks = 0;
                         d.friction = 1;
                         d.vel = vec(board.pos.x - d.pos.x, board.pos.y - d.pos.y).normalize().div(10 / rnd(1, difficulty));
