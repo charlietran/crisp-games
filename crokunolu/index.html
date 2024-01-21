@@ -22,6 +22,8 @@
         let enemyAddAngle;
         let enemyAddTicks;
         let holeAnimTicks;
+        let loseDuration;
+        let loseTimer;
 
         const states = {
             IDLE: 0,
@@ -84,15 +86,16 @@
                 state: states.IDLE,
             };
             board.pos = vec(board.x, board.y + board.y_offset);
+            const pegRadius = board.radius / 2.25;
             board.pegs = [
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (1 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (3 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (5 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (7 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (9 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (11 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (13 / 8), board.radius / 3),
-                vec(board.pos.x, board.pos.y).addWithAngle(PI * (15 / 8), board.radius / 3),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (1 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (3 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (5 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (7 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (9 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (11 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (13 / 8), pegRadius),
+                vec(board.pos.x, board.pos.y).addWithAngle(PI * (15 / 8), pegRadius),
             ];
 
             if (isShapeTheme) {
@@ -111,6 +114,9 @@
             discs = [];
             discsLeft = maxDiscs;
             shooterMoving = false;
+
+            loseDuration = 5 * 60;
+            loseTimer = 0;
         }
 
         function update() {
@@ -121,7 +127,7 @@
             drawBoard();
             drawDiscCount();
 
-            if (input.isJustPressed) {
+            if (input.isJustPressed && discsLeft > 0) {
                 shooter.state = states.SHOOTING;
                 setShooterPos();
             }
@@ -141,17 +147,38 @@
         }
 
         function checkEnd() {
-            if (discsLeft < 1 && !shooterMoving) {
+            if (loseTimer > 1) {
+                loseTimer--;
+            } else if (loseTimer == 1) {
                 end();
             }
+
+            if (discsLeft < 1 && loseTimer < 1) {
+                loseTimer = loseDuration;
+            }
+
+            // if (discsLeft < 1 && !shooterMoving) {
+            //     end();
+            // }
         }
 
         function drawDiscCount() {
-            color("black");
-            times(discsLeft, (i) => {
-                char("a", 2 + i * 6, options.viewSize.y - 3)
-            });
+            if (discsLeft > 0) {
+                color("black");
+                times(discsLeft, (i) => {
+                    char("a", 2 + i * 6, options.viewSize.y - 3)
+                });
+            } else {
+                // color("white");
+                bar(0, options.viewSize.y, options.viewSize.x * (loseTimer / loseDuration), 4, 0, 0);
+                text("out of shots", 2, options.viewSize.y - 6);
+            }
 
+        }
+
+        function addDiscs(count) {
+            discsLeft = Math.min(discsLeft + count, maxDiscs);
+            loseTimer = 0;
         }
 
         function drawBoard() {
@@ -359,7 +386,7 @@
                     if (d.enemy) {
                         addScore(10, d.pos);
                         particle(d.pos);
-                        discsLeft = Math.min(discsLeft + 1, maxDiscs);
+                        addDiscs(1);
                     }
                     play("synth");
                     d.removeTimer = 30;
@@ -379,7 +406,7 @@
                     play("coin");
                     play("explosion");
                     // particle(boad.pos, 100);
-                    discsLeft = Math.min(discsLeft + 3, maxDiscs);
+                    addDiscs(3);
                     if (d.just_shot) {
                         resetShooter();
                     }
